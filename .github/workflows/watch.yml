@@ -1,0 +1,32 @@
+name: chichu-watch
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"   # every 5 minutes (GitHub sometimes runs a bit late)
+  workflow_dispatch:         # lets you press "Run workflow" by hand
+
+permissions:
+  contents: write
+
+concurrency:
+  group: watch
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install playwright requests && python -m playwright install --with-deps chromium
+      - run: python watch.py
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+      - name: Save what the page looked like
+        run: |
+          git config user.name "watcher"
+          git config user.email "watcher@users.noreply.github.com"
+          git add state.json
+          git diff --cached --quiet || (git commit -m "update state" && git push)
